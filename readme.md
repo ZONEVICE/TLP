@@ -1,11 +1,11 @@
 # TLP CPU Frequency Manager
 
-Simple Python scripts to manage and apply `CPU_SCALING_MAX_FREQ_ON_BAT` and `CPU_BOOST_ON_BAT` options in TLP configuration file (`/etc/tlp.conf`) using simple commands.
+Python script to manage and apply `CPU_SCALING_MAX_FREQ_ON_BAT` and `CPU_BOOST_ON_BAT` options in TLP configuration file (`/etc/tlp.conf`) using simple commands.
 
 # Setup
 
-0. Install Python.
-1. Place this project files inside the path `/usr/local/bin/tlp-zv`.
+0. Have Python.
+1. Place the Python project files (`src/core`) inside the path `/usr/local/bin/tlp-zv`.
 2. Create a file without extension in the path `/usr/local/bin/` with the name `tlpv` and add the following content:
 
 ```bash
@@ -35,8 +35,42 @@ Take into consideration that the value passed in `<frequency as kHz>` should be 
 
 # Design
 
+This project has not been tested on other hardware or software configurations.
+
 - CPU: Intel i5-10210U
 - OS: Linux Mint 21.2
 - TLP version: 1.5.0
+- Python 3.10.12
 
-Scripts have not been tested on other hardware and software configurations.
+# GUI
+
+The GUI is a Godot v4.5.1 project located in the `src/gui` folder.
+
+The python project `src/core` must be installed as stated at Setup section.
+
+The GUI must be ran as superuser to have permission to modify the TLP configuration file.
+
+The GUI contains a total of 5 commands to be executed with ease:
+
+`tlpv bf 4`
+
+`tlpv bf 8`
+
+`tlpv bf 16`
+
+`tlpv bf 22`
+
+`tlpv bf 42`
+
+These commands can be executed by pressing the graphical buttons or with a combination of buttons (as the GUI is focused):
+
+Press T + 1: `tlpv bf 4`
+
+Press T + 2: `tlpv bf 8`
+
+Press T + 3: `tlpv bf 16`
+
+Press T + 4: `tlpv bf 22`
+
+Press T + 5: `tlpv bf 42`
+
