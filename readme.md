@@ -41,16 +41,17 @@ This project has not been tested on other hardware or software configurations.
 - OS: Linux Mint 21.2
 - TLP version: 1.5.0
 - Python 3.10.12
+- Java 11 (OpenJDK 11)
 
 # GUI
 
-The GUI is a Godot v4.5.1 project located in the `src/gui` folder.
+The GUI is a Java Swing + Apache Netbeans IDE 25 project located in the `src/gui` folder.
 
 The python project `src/core` must be installed as stated at Setup section.
 
 The GUI must be ran as superuser to have permission to modify the TLP configuration file.
 
-The GUI contains a total of 5 commands to be executed with ease:
+The GUI contains a total of 5 commands to be executed with ease by pressing buttons:
 
 `tlpv bf 4`
 
@@ -61,16 +62,3 @@ The GUI contains a total of 5 commands to be executed with ease:
 `tlpv bf 22`
 
 `tlpv bf 42`
-
-These commands can be executed by pressing the graphical buttons or with a combination of buttons (as the GUI is focused):
-
-Press T + 1: `tlpv bf 4`
-
-Press T + 2: `tlpv bf 8`
-
-Press T + 3: `tlpv bf 16`
-
-Press T + 4: `tlpv bf 22`
-
-Press T + 5: `tlpv bf 42`
-
