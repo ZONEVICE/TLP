@@ -1,0 +1,30 @@
+[package]
+name = "tlp-gui-slint"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+description = "Compact Slint GUI for tlpv, the TLP CPU frequency helper in src/core"
+publish = false
+
+[dependencies]
+# Only what this GUI needs: X11 through winit and the CPU software renderer.
+# No OpenGL/femtovg (its GPU drivers cost tens of MB of RAM), no Wayland, no accessibility (AccessKit/D-Bus).
+slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "backend-winit-x11", "renderer-software"] }
+# Global pointer position for the mouse idle watcher (already part of the dependency tree through winit).
+x11rb = "0.13"
+# Local time for the status header (already part of the dependency tree through Slint).
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+# geteuid() for the "not running as root" warning.
+libc = "0.2"
+
+[build-dependencies]
+slint-build = "1.18"
+
+[profile.release]
+# Optimized for size: less code to map means less resident memory (~0.6 MB less RSS than
+# opt-level 3), and speed doesn't matter for this window.
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

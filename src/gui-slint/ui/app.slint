@@ -1,0 +1,174 @@
+import { Theme, Label, Button, OptionButton, SegmentedControl, Select, NumberField, StatusArea } from "widgets.slint";
+
+// Same layout and sizes as the Java GUI (src/gui/src/gui/Home.java): 559x282 by default.
+export component AppWindow inherits Window {
+    // Options of the drop-downs and the big buttons, in tlpv units (x 100 MHz).
+    in property <[int]> values: [4, 8, 16, 22, 42];
+    // Battery mode ("tlpv bf") when false, AC mode ("tlpv af") when true.
+    in property <bool> ac-mode;
+    // Values currently written in /etc/tlp.conf, -1 when unknown.
+    in property <int> active-bat: -1;
+    in property <int> active-ac: -1;
+    in property <string> status-title;
+    in property <string> status-text;
+
+    in-out property <int> watch-index: 1;
+    in-out property <int> watch-seconds: 5;
+    in property <bool> watch-armed;
+
+    in-out property <int> delay-index: 1;
+    in-out property <int> delay-minutes: 1;
+    in property <bool> delay-armed;
+    // Shown on the timer's button while the timer runs.
+    in property <string> delay-remaining;
+
+    callback option-clicked(/* value */ int);
+    callback toggle-mode();
+    callback watch-clicked(/* value */ int, /* seconds */ int);
+    callback delay-clicked(/* value */ int, /* minutes */ int);
+
+    property <string> mode-label: root.ac-mode ? "AC" : "BF";
+    property <int> active: root.ac-mode ? root.active-ac : root.active-bat;
+
+    title: "TLP";
+    background: Theme.window;
+    default-font-family: Theme.font-family;
+    default-font-size: Theme.font-size;
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 6px;
+
+        // 12px around labels; the minimum widths keep every control where the Java GUI has it.
+        HorizontalLayout {
+            spacing: 12px;
+            height: 25px;
+
+            Label {
+                text: "Change to";
+                min-width: 73px;
+                horizontal-stretch: 0;
+            }
+
+            Select {
+                values: root.values;
+                prefix: root.mode-label + " ";
+                current-index <=> root.watch-index;
+                enabled: !root.watch-armed;
+            }
+
+            Label {
+                text: "after mouse idle for";
+                min-width: 140px;
+                horizontal-stretch: 0;
+            }
+
+            NumberField {
+                width: 70px;
+                value <=> root.watch-seconds;
+                enabled: !root.watch-armed;
+            }
+
+            Label {
+                text: "seconds >";
+                min-width: 73px;
+                horizontal-stretch: 0;
+            }
+
+            Button {
+                text: "OK";
+                active: root.watch-armed;
+                horizontal-stretch: 1;
+                clicked => {
+                    root.watch-clicked(root.values[root.watch-index], root.watch-seconds);
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            height: 25px;
+
+            Label {
+                text: "Change to";
+                min-width: 73px;
+                horizontal-stretch: 0;
+            }
+
+            Select {
+                values: root.values;
+                prefix: root.mode-label + " ";
+                current-index <=> root.delay-index;
+                enabled: !root.delay-armed;
+            }
+
+            Label {
+                text: "after";
+                min-width: 35px;
+                horizontal-stretch: 0;
+            }
+
+            Rectangle {
+                width: 84px; // a wider gap before this field, as in the Java GUI
+
+                NumberField {
+                    x: 6px;
+                    y: 0;
+                    width: 78px;
+                    value <=> root.delay-minutes;
+                    enabled: !root.delay-armed;
+                }
+            }
+
+            Label {
+                text: "minutes >";
+                min-width: 71px;
+                horizontal-stretch: 0;
+            }
+
+            Button {
+                text: root.delay-armed ? root.delay-remaining : "OK";
+                active: root.delay-armed;
+                horizontal-stretch: 1;
+                clicked => {
+                    root.delay-clicked(root.values[root.delay-index], root.delay-minutes);
+                }
+            }
+        }
+
+        SegmentedControl {
+            height: 25px;
+            options: ["Battery", "AC"];
+            current: root.ac-mode ? 1 : 0;
+            selected(index) => {
+                if (index == 1) != root.ac-mode {
+                    root.toggle-mode();
+                }
+            }
+        }
+
+        StatusArea {
+            min-height: 101px;
+            vertical-stretch: 1;
+            title: root.status-title;
+            text: root.status-text;
+        }
+
+        HorizontalLayout {
+            spacing: 6px;
+            padding-right: 1px; // 5 x 102px buttons, as in the Java GUI
+            height: 58px;
+
+            for value in root.values: OptionButton {
+                min-width: 102px;
+                horizontal-stretch: 1;
+                prefix: root.mode-label;
+                value: value;
+                active: value == root.active;
+                clicked => {
+                    root.option-clicked(value);
+                }
+            }
+        }
+    }
+}

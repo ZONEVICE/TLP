@@ -1,0 +1,657 @@
+// Flat widgets with a neutral palette. Same sizes as the Java GUI's controls, with a modern look.
+
+export global Theme {
+    // Neutral greys (the Tailwind "zinc" scale).
+    out property <color> window: #f4f4f5;
+    out property <color> surface: #ffffff;
+    out property <color> surface-hover: #fafafa;
+    out property <color> surface-pressed: #e4e4e7;
+    out property <color> surface-disabled: #f4f4f5;
+    out property <color> item-hover: #f4f4f5;
+    out property <color> track: #e4e4e7;
+    out property <color> border: #d4d4d8;
+    out property <color> border-strong: #a1a1aa;
+    out property <color> text: #18181b;
+    out property <color> text-secondary: #3f3f46;
+    out property <color> text-muted: #71717a;
+    out property <color> text-disabled: #a1a1aa;
+    // Filled look for "on" states: the value in /etc/tlp.conf, a running watcher or timer.
+    out property <color> active: #27272a;
+    out property <color> active-hover: #3f3f46;
+    out property <color> active-pressed: #18181b;
+    out property <color> on-active: #fafafa;
+    out property <color> on-active-muted: #a1a1aa;
+    // Drawn 1px below raised controls: the software renderer has no shadows.
+    out property <color> shadow: #0000000d;
+    out property <color> focus-ring: #a1a1aa;
+    out property <length> radius: 6px;
+    out property <string> font-family: "Ubuntu"; // the desktop's UI font on Linux Mint
+    out property <string> mono-font-family: "Ubuntu Mono";
+    out property <length> font-size: 13px;
+    out property <duration> transition: 120ms;
+}
+
+// Shown around a control focused with the keyboard (not after a click). The user sets its size:
+// the control's size + 6px.
+component FocusRing inherits Rectangle {
+    in property <length> radius: Theme.radius;
+    x: -3px;
+    y: -3px;
+    border-radius: self.radius + 3px;
+    border-width: 2px;
+    border-color: Theme.focus-ring;
+}
+
+// The 1px line under a raised control (same size as its parent, 1px lower).
+component Shadow inherits Rectangle {
+    in property <length> radius: Theme.radius;
+    y: 1px;
+    border-radius: self.radius;
+    background: Theme.shadow;
+}
+
+export component Label inherits Text {
+    color: Theme.text-secondary;
+    vertical-alignment: center;
+}
+
+export component Button {
+    in property <string> text;
+    in property <bool> enabled: true;
+    in property <bool> active;
+    in property <length> radius: Theme.radius;
+    in property <length> font-size: Theme.font-size;
+    in property <int> font-weight: 500;
+
+    callback clicked;
+
+    property <bool> keyboard-focus;
+    property <bool> hovered: touch.has-hover && root.enabled;
+
+    min-width: round(label.preferred-width / 1px) * 1px + 20px;
+    forward-focus: focus-scope;
+
+    if !root.active: Shadow {
+        radius: root.radius;
+    }
+
+    Rectangle {
+        border-radius: root.radius;
+        border-width: 1px;
+        border-color: root.active ? Theme.active : root.hovered ? Theme.border-strong : Theme.border;
+        background: root.active
+            ? (touch.pressed ? Theme.active-pressed : root.hovered ? Theme.active-hover : Theme.active)
+            : !root.enabled ? Theme.surface-disabled
+            : touch.pressed ? Theme.surface-pressed
+            : root.hovered ? Theme.surface-hover
+            : Theme.surface;
+        animate background, border-color { duration: Theme.transition; }
+    }
+
+    label := Text {
+        width: 100%;
+        height: 100%;
+        text: root.text;
+        font-size: root.font-size;
+        font-weight: root.font-weight;
+        color: root.active ? Theme.on-active : root.enabled ? Theme.text : Theme.text-disabled;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    @children
+
+    if root.keyboard-focus && focus-scope.has-focus: FocusRing {
+        width: root.width + 6px;
+        height: root.height + 6px;
+        radius: root.radius;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            focus-scope.focus();
+            root.clicked();
+        }
+    }
+
+    focus-scope := FocusScope {
+        x: 0;
+        width: 0; // keyboard only, clicks are handled by the TouchArea
+        enabled: root.enabled;
+        focus-changed-event(reason) => {
+            root.keyboard-focus = reason == FocusReason.tab-navigation;
+        }
+        key-pressed(event) => {
+            if event.text == Key.Space || event.text == Key.Return {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+    }
+}
+
+// Big button: a small muted prefix ("BF", "AC") before a large value, on one baseline.
+export component OptionButton inherits Button {
+    in property <string> prefix;
+    in property <int> value;
+
+    property <length> gap: 5px;
+    // Centers the digits (cap height) vertically.
+    property <length> baseline: round((self.height + number.font-metrics.cap-height) / 2 / 1px) * 1px;
+    property <length> start: round((self.width - prefix-text.preferred-width - self.gap - number.preferred-width) / 2 / 1px) * 1px;
+
+    radius: 8px;
+
+    prefix-text := Text {
+        x: root.start;
+        y: root.baseline - self.font-metrics.ascent;
+        text: root.prefix;
+        font-size: 15px;
+        font-weight: 500;
+        color: root.active ? Theme.on-active-muted : Theme.text-muted;
+    }
+
+    number := Text {
+        x: root.start + prefix-text.preferred-width + root.gap;
+        y: root.baseline - self.font-metrics.ascent;
+        text: root.value;
+        font-size: 24px;
+        color: root.active ? Theme.on-active : Theme.text;
+    }
+}
+
+// Two-option switch, e.g. Battery | AC.
+export component SegmentedControl {
+    in property <[string]> options;
+    in property <int> current;
+
+    callback selected(/* index */ int);
+
+    property <length> inset: 2px;
+    property <length> segment-width: floor((root.width - 2 * root.inset) / root.options.length / 1px) * 1px;
+    property <bool> keyboard-focus;
+
+    forward-focus: focus-scope;
+
+    Rectangle {
+        border-radius: Theme.radius;
+        background: Theme.track;
+    }
+
+    Rectangle {
+        x: root.inset + root.current * root.segment-width;
+        y: root.inset;
+        width: root.segment-width;
+        height: root.height - 2 * root.inset;
+
+        Shadow {
+            radius: Theme.radius - 2px;
+        }
+
+        Rectangle {
+            border-radius: Theme.radius - 2px;
+            background: Theme.surface;
+        }
+
+        animate x { duration: 150ms; easing: ease-out; }
+    }
+
+    for option[index] in root.options: Rectangle {
+        x: root.inset + index * root.segment-width;
+        y: root.inset;
+        width: root.segment-width;
+        height: root.height - 2 * root.inset;
+
+        Text {
+            width: 100%;
+            height: 100%;
+            text: option;
+            font-weight: index == root.current ? 500 : 400;
+            color: index == root.current ? Theme.text : touch.has-hover ? Theme.text : Theme.text-muted;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        touch := TouchArea {
+            clicked => {
+                focus-scope.focus();
+                if index != root.current {
+                    root.selected(index);
+                }
+            }
+        }
+    }
+
+    if root.keyboard-focus && focus-scope.has-focus: FocusRing {
+        width: root.width + 6px;
+        height: root.height + 6px;
+    }
+
+    focus-scope := FocusScope {
+        x: 0;
+        width: 0; // keyboard only, clicks are handled by the segments
+        focus-changed-event(reason) => {
+            root.keyboard-focus = reason == FocusReason.tab-navigation;
+        }
+        key-pressed(event) => {
+            if event.text == Key.LeftArrow && root.current > 0 {
+                root.selected(root.current - 1);
+                return accept;
+            }
+            if event.text == Key.RightArrow && root.current < root.options.length - 1 {
+                root.selected(root.current + 1);
+                return accept;
+            }
+            if event.text == Key.Space || event.text == Key.Return {
+                root.selected(mod(root.current + 1, root.options.length));
+                return accept;
+            }
+            reject
+        }
+    }
+}
+
+// Drop-down list showing `prefix + values[i]` ("BF 8", "AC 8", ...).
+export component Select {
+    in property <[int]> values;
+    in property <string> prefix;
+    in property <bool> enabled: true;
+    in-out property <int> current-index;
+
+    property <length> item-height: 24px;
+    property <bool> keyboard-focus;
+    property <bool> hovered: touch.has-hover && root.enabled;
+
+    width: 65px;
+    height: 25px;
+    forward-focus: focus-scope;
+
+    function select(index: int) {
+        root.current-index = max(0, min(root.values.length - 1, index));
+    }
+
+    Shadow { }
+
+    Rectangle {
+        border-radius: Theme.radius;
+        border-width: 1px;
+        border-color: root.hovered || popup.is-open ? Theme.border-strong : Theme.border;
+        background: !root.enabled ? Theme.surface-disabled : root.hovered ? Theme.surface-hover : Theme.surface;
+        animate background, border-color { duration: Theme.transition; }
+    }
+
+    Text {
+        x: 9px;
+        width: root.width - 28px;
+        height: root.height;
+        vertical-alignment: center;
+        text: root.prefix + root.values[root.current-index];
+        color: root.enabled ? Theme.text : Theme.text-disabled;
+    }
+
+    // Chevron
+    Path {
+        x: root.width - 17px;
+        y: round((root.height - 5px) / 2 / 1px) * 1px;
+        width: 8px;
+        height: 5px;
+        viewbox-width: 8;
+        viewbox-height: 5;
+        commands: "M 0.75 0.75 L 4 4 L 7.25 0.75";
+        stroke: root.enabled ? Theme.text-muted : Theme.text-disabled;
+        stroke-width: 1.5px;
+        stroke-line-cap: round;
+        stroke-line-join: round;
+    }
+
+    if root.keyboard-focus && focus-scope.has-focus: FocusRing {
+        width: root.width + 6px;
+        height: root.height + 6px;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            focus-scope.focus();
+            popup.show();
+        }
+    }
+
+    focus-scope := FocusScope {
+        x: 0;
+        width: 0; // keyboard only, clicks are handled by the TouchArea
+        enabled: root.enabled;
+        focus-changed-event(reason) => {
+            root.keyboard-focus = reason == FocusReason.tab-navigation;
+        }
+        key-pressed(event) => {
+            if event.text == Key.UpArrow {
+                root.select(root.current-index - 1);
+                return accept;
+            }
+            if event.text == Key.DownArrow {
+                root.select(root.current-index + 1);
+                return accept;
+            }
+            if event.text == Key.Space || event.text == Key.Return {
+                popup.show();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    popup := PopupWindow {
+        x: 0;
+        y: root.height + 4px;
+        width: max(root.width, 88px);
+        height: root.values.length * root.item-height + 8px;
+        close-policy: close-on-click-outside;
+        forward-focus: popup-focus;
+
+        popup-focus := FocusScope {
+            key-pressed(event) => {
+                if event.text == Key.UpArrow {
+                    root.select(root.current-index - 1);
+                    return accept;
+                }
+                if event.text == Key.DownArrow {
+                    root.select(root.current-index + 1);
+                    return accept;
+                }
+                if event.text == Key.Return || event.text == Key.Escape || event.text == Key.Space {
+                    popup.close();
+                    return accept;
+                }
+                reject
+            }
+
+            Rectangle {
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Theme.border;
+                background: Theme.surface;
+            }
+
+            for value[index] in root.values: Rectangle {
+                x: 4px;
+                y: 4px + index * root.item-height;
+                width: popup.width - 8px;
+                height: root.item-height;
+                border-radius: 4px;
+                background: item.has-hover ? Theme.item-hover : transparent;
+
+                Text {
+                    x: 8px;
+                    height: parent.height;
+                    vertical-alignment: center;
+                    text: root.prefix + value;
+                    font-weight: index == root.current-index ? 500 : 400;
+                    color: Theme.text;
+                }
+
+                if index == root.current-index: Path {
+                    x: parent.width - 20px;
+                    y: round((parent.height - 7px) / 2 / 1px) * 1px;
+                    width: 10px;
+                    height: 7px;
+                    viewbox-width: 10;
+                    viewbox-height: 7;
+                    commands: "M 0.75 3.5 L 3.75 6.25 L 9.25 0.75";
+                    stroke: Theme.text;
+                    stroke-width: 1.5px;
+                    stroke-line-cap: round;
+                    stroke-line-join: round;
+                }
+
+                item := TouchArea {
+                    clicked => {
+                        root.current-index = index;
+                        popup.close();
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Integer field with − and + buttons (large enough for a finger) around an editable value.
+export component NumberField {
+    in property <int> minimum: 1;
+    in property <int> maximum: 9999;
+    in property <bool> enabled: true;
+    in-out property <int> value;
+
+    property <length> button-width: 18px;
+    // Auto-repeat while a button is held: the first ticks act as an initial delay.
+    property <int> repeat-ticks;
+
+    height: 25px;
+    forward-focus: input;
+
+    function step(delta: int) {
+        root.value = max(root.minimum, min(root.maximum, root.value + delta));
+    }
+
+    changed value => {
+        input.text = root.value;
+    }
+
+    init => {
+        input.text = root.value;
+    }
+
+    Shadow { }
+
+    Rectangle {
+        border-radius: Theme.radius;
+        border-width: 1px;
+        border-color: input.has-focus ? Theme.text-muted : Theme.border;
+        background: root.enabled ? Theme.surface : Theme.surface-disabled;
+        animate border-color { duration: Theme.transition; }
+    }
+
+    // Mouse wheel over the field steps the value too.
+    TouchArea {
+        enabled: root.enabled;
+        scroll-event(event) => {
+            if event.delta-y > 0 {
+                root.step(1);
+                return accept;
+            }
+            if event.delta-y < 0 {
+                root.step(-1);
+                return accept;
+            }
+            reject
+        }
+    }
+
+    for button[index] in [-1, 1]: Rectangle {
+        x: index == 0 ? 2px : root.width - root.button-width - 2px;
+        y: 2px;
+        width: root.button-width;
+        height: root.height - 4px;
+        border-radius: Theme.radius - 2px;
+        background: touch.pressed && touch.has-hover ? Theme.surface-pressed : touch.has-hover && root.enabled ? Theme.item-hover : transparent;
+
+        Path {
+            x: round((parent.width - 8px) / 2 / 1px) * 1px;
+            y: round((parent.height - 8px) / 2 / 1px) * 1px;
+            width: 8px;
+            height: 8px;
+            viewbox-width: 8;
+            viewbox-height: 8;
+            commands: button < 0 ? "M 0.5 4 L 7.5 4" : "M 0.5 4 L 7.5 4 M 4 0.5 L 4 7.5";
+            stroke: root.enabled ? Theme.text-muted : Theme.text-disabled;
+            stroke-width: 1.5px;
+            stroke-line-cap: round;
+        }
+
+        touch := TouchArea {
+            enabled: root.enabled;
+            pointer-event(event) => {
+                if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                    root.repeat-ticks = 0;
+                    root.step(button);
+                }
+            }
+        }
+
+        Timer {
+            interval: 60ms;
+            running: touch.pressed && touch.has-hover;
+            triggered => {
+                root.repeat-ticks += 1;
+                if root.repeat-ticks > 6 {
+                    root.step(button);
+                }
+            }
+        }
+    }
+
+    input := TextInput {
+        x: root.button-width + 2px;
+        width: root.width - 2 * root.button-width - 4px;
+        height: root.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        single-line: true;
+        input-type: number;
+        enabled: root.enabled;
+        color: root.enabled ? Theme.text : Theme.text-disabled;
+        selection-background-color: Theme.surface-pressed;
+        selection-foreground-color: Theme.text;
+
+        key-pressed(event) => {
+            if event.text == Key.UpArrow {
+                root.step(1);
+                return accept;
+            }
+            if event.text == Key.DownArrow {
+                root.step(-1);
+                return accept;
+            }
+            reject
+        }
+
+        edited => {
+            if self.text.is-float() && self.text.to-float() >= root.minimum && self.text.to-float() <= root.maximum {
+                root.value = self.text.to-float();
+            }
+        }
+
+        accepted => {
+            self.text = root.value;
+        }
+
+        changed has-focus => {
+            if !self.has-focus {
+                self.text = root.value;
+            }
+        }
+    }
+}
+
+// Card with a one-line title and read-only, selectable, word-wrapped monospace text. A thin
+// scrollbar shows up when the text does not fit.
+export component StatusArea {
+    in property <string> title;
+    in property <string> text;
+
+    property <length> padding-x: 10px;
+    property <length> text-top: 25px;
+    property <length> text-width: root.width - 2 * root.padding-x;
+    property <length> text-height: root.height - root.text-top - 5px;
+    // 14px lines (Ubuntu Mono 12px is 12px tall).
+    property <float> line-height-factor: 14 / 12;
+    // Measured at full width so that showing the scrollbar can't feed back into the text height.
+    property <bool> overflow: measure.preferred-height > root.text-height;
+
+    changed text => {
+        flick.content-y = 0;
+    }
+
+    Rectangle {
+        border-radius: Theme.radius;
+        border-width: 1px;
+        border-color: Theme.border;
+        background: Theme.surface;
+    }
+
+    Text {
+        x: root.padding-x;
+        y: 6px;
+        width: root.text-width;
+        height: 16px;
+        vertical-alignment: center;
+        overflow: elide;
+        text: root.title;
+        font-size: 12px;
+        font-weight: 500;
+        color: Theme.text-muted;
+    }
+
+    measure := Text {
+        visible: false;
+        width: root.text-width;
+        wrap: word-wrap;
+        font-family: Theme.mono-font-family;
+        font-size: 12px;
+        line-height-factor: root.line-height-factor;
+        text: root.text;
+    }
+
+    flick := Flickable {
+        x: root.padding-x;
+        y: root.text-top;
+        width: root.text-width - (root.overflow ? 8px : 0px);
+        height: root.text-height;
+        mouse-drag-pan-enabled: false; // mouse drags select text, touch drags scroll
+        content-width: self.width;
+        content-height: max(self.height, content.preferred-height);
+
+        content := TextInput {
+            width: flick.width;
+            read-only: true;
+            single-line: false;
+            wrap: word-wrap;
+            font-family: Theme.mono-font-family;
+            font-size: 12px;
+            line-height-factor: root.line-height-factor;
+            text: root.text;
+            color: Theme.text-secondary;
+            selection-background-color: Theme.surface-pressed;
+            selection-foreground-color: Theme.text;
+        }
+    }
+
+    if root.overflow: Rectangle {
+        x: root.width - 9px;
+        y: root.text-top;
+        width: 5px;
+        height: root.text-height;
+
+        thumb := Rectangle {
+            property <length> travel: parent.height - self.height;
+            property <length> scroll-range: max(1px, flick.content-height - flick.height);
+
+            width: parent.width;
+            height: max(16px, parent.height * flick.height / max(1px, flick.content-height));
+            y: self.travel * (-flick.content-y) / self.scroll-range;
+            border-radius: self.width / 2;
+            background: drag.has-hover || drag.pressed ? Theme.border-strong : Theme.border;
+
+            drag := TouchArea {
+                moved => {
+                    if self.pressed && thumb.travel > 0 {
+                        flick.content-y = max(-thumb.scroll-range, min(0px,
+                            flick.content-y - (self.mouse-y - self.pressed-y) * thumb.scroll-range / thumb.travel));
+                    }
+                }
+            }
+        }
+    }
+}
