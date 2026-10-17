@@ -144,7 +144,7 @@ impl Controller {
 
     fn option_clicked(&mut self, value: i32) {
         // Like the Java GUI, get out of the way right away.
-        minimize(self.ui.unwrap().window());
+        self.minimize_unless_shift();
         self.set_manual(value, "");
     }
 
@@ -182,7 +182,7 @@ impl Controller {
                 }
             });
         ui.set_watch_armed(true);
-        minimize(ui.window());
+        self.minimize_unless_shift();
     }
 
     fn stop_watcher(&mut self) {
@@ -216,11 +216,25 @@ impl Controller {
         }
     }
 
-    fn pointer_position(&mut self) -> Result<Position, Box<dyn Error>> {
+    /// Connects to the X server on first use.
+    fn pointer(&mut self) -> Result<&Pointer, Box<dyn Error>> {
         if self.pointer.is_none() {
             self.pointer = Some(Pointer::connect()?);
         }
-        self.pointer.as_ref().expect("connected above").position()
+        Ok(self.pointer.as_ref().expect("connected above"))
+    }
+
+    fn pointer_position(&mut self) -> Result<Position, Box<dyn Error>> {
+        self.pointer()?.position()
+    }
+
+    /// Minimizes the window like the Java GUI, unless Shift is held: Shift+click keeps it open.
+    /// Slint's `clicked` has no modifiers, and Slint learns of them from key events, which only
+    /// reach the focused window: ask the X server instead. Minimizes if that fails.
+    fn minimize_unless_shift(&mut self) {
+        if !self.pointer().and_then(Pointer::shift_held).unwrap_or(false) {
+            minimize(self.ui.unwrap().window());
+        }
     }
 
     /// Starts the timer, or cancels it when it is already running.
@@ -242,7 +256,7 @@ impl Controller {
                     this.borrow_mut().delay_tick();
                 }
             });
-        minimize(ui.window());
+        self.minimize_unless_shift();
     }
 
     fn delay_tick(&mut self) {

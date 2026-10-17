@@ -5,7 +5,7 @@ use std::error::Error;
 use std::time::{Duration, Instant};
 
 use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{ConnectionExt, Window};
+use x11rb::protocol::xproto::{ConnectionExt, KeyButMask, Window};
 use x11rb::rust_connection::RustConnection;
 
 use crate::tlp::Mode;
@@ -73,7 +73,7 @@ impl IdleWatcher {
     }
 }
 
-/// Global pointer position, through an X11 connection of its own.
+/// Global pointer position and Shift state, through an X11 connection of its own.
 pub struct Pointer {
     connection: RustConnection,
     root: Window,
@@ -89,6 +89,12 @@ impl Pointer {
     pub fn position(&self) -> Result<Position, Box<dyn Error>> {
         let reply = self.connection.query_pointer(self.root)?.reply()?;
         Ok((reply.root_x, reply.root_y))
+    }
+
+    /// Whether a Shift key (left or right) is held, whichever window has the keyboard focus.
+    pub fn shift_held(&self) -> Result<bool, Box<dyn Error>> {
+        let reply = self.connection.query_pointer(self.root)?.reply()?;
+        Ok(reply.mask.contains(KeyButMask::SHIFT))
     }
 }
 

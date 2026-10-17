@@ -22,6 +22,13 @@ public class Home extends javax.swing.JFrame {
         this.jTextArea_StateMSG.setText(msg);
     }
 
+    // Minimizes the window, unless Shift (left or right) is held during the click.
+    private void minimizeUnlessShift(java.awt.event.ActionEvent evt) {
+        if ((evt.getModifiers() & java.awt.event.ActionEvent.SHIFT_MASK) == 0) {
+            this.setState(javax.swing.JFrame.ICONIFIED);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -218,31 +225,31 @@ public class Home extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void jButton_BF4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_BF4ActionPerformed
-        this.setState(javax.swing.JFrame.ICONIFIED);
+        minimizeUnlessShift(evt);
         jTextArea_StateMSG.setText(executeTLPBFAC.exec(4));
         StateRepo.lastManualEnergyOptionSelected = 4;
     }//GEN-LAST:event_jButton_BF4ActionPerformed
 
     private void jButton_BF8ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_BF8ActionPerformed
-        this.setState(javax.swing.JFrame.ICONIFIED);
+        minimizeUnlessShift(evt);
         jTextArea_StateMSG.setText(executeTLPBFAC.exec(8));
         StateRepo.lastManualEnergyOptionSelected = 8;
     }//GEN-LAST:event_jButton_BF8ActionPerformed
 
     private void jButton_BF16ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_BF16ActionPerformed
-        this.setState(javax.swing.JFrame.ICONIFIED);
+        minimizeUnlessShift(evt);
         jTextArea_StateMSG.setText(executeTLPBFAC.exec(16));
         StateRepo.lastManualEnergyOptionSelected = 16;
     }//GEN-LAST:event_jButton_BF16ActionPerformed
 
     private void jButton_BF22ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_BF22ActionPerformed
-        this.setState(javax.swing.JFrame.ICONIFIED);
+        minimizeUnlessShift(evt);
         jTextArea_StateMSG.setText(executeTLPBFAC.exec(22));
         StateRepo.lastManualEnergyOptionSelected = 22;
     }//GEN-LAST:event_jButton_BF22ActionPerformed
 
     private void jButton_BF42ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_BF42ActionPerformed
-        this.setState(javax.swing.JFrame.ICONIFIED);
+        minimizeUnlessShift(evt);
         jTextArea_StateMSG.setText(executeTLPBFAC.exec(42));
         StateRepo.lastManualEnergyOptionSelected = 42;
     }//GEN-LAST:event_jButton_BF42ActionPerformed
@@ -292,7 +299,7 @@ public class Home extends javax.swing.JFrame {
         this.delayedActionExec = new DelayedActionExec(this.executeTLPBFAC, Integer.parseInt(bf));
 
         // Minimize the window.
-        this.setState(javax.swing.JFrame.ICONIFIED);
+        minimizeUnlessShift(evt);
     }//GEN-LAST:event_jButton_ChangeBFWithDelayActionPerformed
 
     private void jButton_watchOnOffActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_watchOnOffActionPerformed
@@ -317,7 +324,7 @@ public class Home extends javax.swing.JFrame {
             StateRepo.watcherMouseAction.setSettings(seconds, Integer.parseInt(bf));
             StateRepo.watcherMouseAction.start();
             jButton_watchOnOff.setBackground(Color.green);
-            this.setState(javax.swing.JFrame.ICONIFIED);
+            minimizeUnlessShift(evt);
         }
     }//GEN-LAST:event_jButton_watchOnOffActionPerformed
 

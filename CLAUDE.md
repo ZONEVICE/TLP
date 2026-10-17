@@ -41,7 +41,11 @@ and keep temperatures down. The owner writes in Spanish; code, comments and docs
 ## Java GUI (`src/gui`)
 
 - NetBeans/Ant project, Swing Metal look ("Ocean" theme). The owner starts it from a terminal:
-  `cd src/gui/dist && sudo java -jar gui.jar` (~115 MB RSS).
+  `cd src/gui/dist && sudo java -jar gui.jar` (~115 MB RSS). `ant jar` in `src/gui` rebuilds
+  `dist/gui.jar` without opening NetBeans (Java 11 target, NetBeans' JDK settings).
+- The big buttons, the timer's OK and the watcher's OK (when turning it on) minimize the window,
+  unless Shift is held during the click (`minimizeUnlessShift`, from the `ActionEvent`'s
+  modifiers).
 - Known limitation, kept on purpose: its combo boxes always say "BF", it keeps one "last manual
   value" for both modes, and the AC/BATTERY toggle is not reflected in the mouse idle and timer
   rows. Fixed only in the Slint GUI.
@@ -73,14 +77,16 @@ without root against a fake (see Testing). Without root the status area says so 
 - `src/tlp.rs`: `Mode` (bf/af), `Runner` (worker thread running one tlpv job at a time, reports
   the status title/text and the re-read `/etc/tlp.conf`), config parsing, power source, root check.
 - `src/idle.rs`: mouse idle state machine (pure, unit-tested) and the X11 pointer query (x11rb,
-  own connection).
+  own connection): pointer position, and whether Shift is held.
 - `build.rs`: compiles `ui/app.slint` with the `fluent-light` style (only so nothing follows the
   desktop's dark theme; no std-widgets are used).
 
 ### Behavior
 
 - Same window and controls as the Java GUI. A big button runs `tlpv bf|af N` and minimizes the
-  window, like Java (every time: see the minimize gotcha below).
+  window, like Java (every time: see the minimize gotcha below), and so do the watcher's and the
+  timer's OK when they turn on. Holding Shift (left or right) while clicking any of them keeps
+  the window open, in both GUIs (see the Shift gotcha below).
 - Battery | AC switch (Java's "Toggle AC/BATTERY mode" button): changes the labels of the big
   buttons **and** of both drop-downs; the idle watcher and the timer act on the mode that is
   current when they fire (the fix requested over the Java GUI).
@@ -127,6 +133,11 @@ without root against a fake (see Testing). Without root the status area says so 
   winit events, which Muffin (compositing) never sends when the window is restored, so a second
   `set_minimized(true)` was ignored. `minimize()` in `main.rs` resets it with
   `set_minimized(false)` first (Muffin logs a harmless "Buggy client ... timestamp of 0").
+- Shift gotcha: Slint's `clicked` carries no modifiers, and Slint tracks them only through key
+  events, which go to the focused window (metacity doesn't even focus a window on Shift+click;
+  Muffin does). So `minimize_unless_shift()` asks the X server instead (`Pointer::shift_held`:
+  the mask of a QueryPointer, on the idle watcher's connection, opened on first use); that also
+  covers Shift+Space/Enter on a focused button.
 - Memory is the reason for this GUI (~15 MB RSS vs ~115 MB for Java): keep the Slint features
   minimal (X11 winit backend + software renderer; no OpenGL, Wayland or accessibility) and
   `opt-level = "s"`. The winit backend always starts a zbus thread for the XDG portal and links
@@ -140,8 +151,8 @@ without root against a fake (see Testing). Without root the status area says so 
 - `fake-tlpv`: runs the real `src/core/main.py` with `/etc/tlp.conf` redirected to
   `$TLP_GUI_CONF` and `sudo tlp start` replaced by TLP-like output; logs calls to `calls.log`
   next to that file.
-- `xt.py`: drives a virtual display (`geom`, `click`, `press`/`release`, `move`, `key`, `shot`,
-  `state`), coordinates relative to the window titled `TLP`.
+- `xt.py`: drives a virtual display (`geom`, `click`, `press`/`release`, `move`, `key`,
+  `keydown`/`keyup`, `shot`, `state`), coordinates relative to the window titled `TLP`.
 - `compare.py`: side-by-side and diff against `dev/gui-java-example.png`.
 
 ```sh
@@ -152,6 +163,10 @@ DISPLAY=:99 TLP_GUI_TLPV=dev/gui-slint-test/fake-tlpv TLP_GUI_CONF="$W/tlp.conf"
     "$CARGO_TARGET_DIR/release/tlp-gui-slint" &
 python3 dev/gui-slint-test/xt.py click 387 241 TLP     # 4th big button (minimizes the window)
 DISPLAY=:99 wmctrl -a TLP                               # restore it
+python3 dev/gui-slint-test/xt.py keydown Shift_L        # Shift+click: the window stays open
+python3 dev/gui-slint-test/xt.py click 387 241 TLP
+python3 dev/gui-slint-test/xt.py keyup Shift_L
+python3 dev/gui-slint-test/xt.py state TLP              # 1 normal, 3 minimized
 python3 dev/gui-slint-test/xt.py shot "$W/shot.png" TLP
 cat "$W/calls.log"                                      # e.g. "13:56:59 af 22 -> sudo tlp start"
 ```
@@ -160,3 +175,14 @@ Useful click targets (window coordinates): watcher OK (519, 24), its seconds −
 (385, 24); timer OK (473, 55); Battery (145, 86) / AC (412, 86); big buttons at y 241,
 x 60 + 108·i. To reproduce window-manager behavior like the minimize bug, use Muffin: its
 compositing keeps minimized windows mapped.
+
+The Java GUI runs `/usr/local/bin/tlpv` itself. To point it at the fake, bind-mount a wrapper
+over that path in a private user + mount namespace (a wrapper because `fake-tlpv` finds
+`src/core` from its own path). Its window is titled " " (one space); same click targets.
+
+```sh
+printf '#!/bin/sh\nexec %s/dev/gui-slint-test/fake-tlpv "$@"\n' "$PWD" > "$W/tlpv"; chmod +x "$W/tlpv"
+DISPLAY=:99 TLP_GUI_CONF="$W/tlp.conf" unshare --user --map-root-user --mount \
+    sh -c "mount --bind '$W/tlpv' /usr/local/bin/tlpv && exec java -jar src/gui/dist/gui.jar" &
+python3 dev/gui-slint-test/xt.py click 387 241 " "
+```
